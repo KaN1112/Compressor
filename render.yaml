@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: discord-mp4-compressor
+    env: docker
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: MAX_UPLOAD_MB
+        value: "250"
+      - key: BASIC_AUTH_USER
+        value: ""
+      - key: BASIC_AUTH_PASSWORD
+        value: ""

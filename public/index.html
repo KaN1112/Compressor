@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Discord MP4 動画圧縮</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101216;
+      --panel: #191e25;
+      --panel-2: #232a34;
+      --line: #3a4452;
+      --text: #f4f7fb;
+      --muted: #aab4c2;
+      --accent: #58d7a6;
+      --blue: #7bb7ff;
+      --danger: #ff746d;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(16,18,22,.76), #101216 72%),
+        radial-gradient(circle at 15% 0%, rgba(88,215,166,.14), transparent 34%),
+        radial-gradient(circle at 92% 8%, rgba(123,183,255,.13), transparent 32%),
+        #101216;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select { font: inherit; }
+    .app {
+      width: min(1120px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 30px 0;
+    }
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: .96;
+      letter-spacing: 0;
+    }
+    .badge {
+      border: 1px solid rgba(88,215,166,.45);
+      background: rgba(88,215,166,.13);
+      color: #caffeb;
+      border-radius: 8px;
+      min-width: 118px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 18px;
+      align-items: start;
+    }
+    .hero, .side, .drop, .metric, .result {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(25,30,37,.94);
+      box-shadow: var(--shadow);
+    }
+    .hero { min-height: 520px; overflow: hidden; }
+    .visual {
+      min-height: 356px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(88,215,166,.18), rgba(123,183,255,.10)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, transparent 1px 52px),
+        #0a0d11;
+      border-bottom: 1px solid var(--line);
+    }
+    .file-chip {
+      width: min(560px, calc(100% - 36px));
+      min-height: 148px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 8px;
+      background: rgba(10,13,17,.72);
+      display: grid;
+      align-content: center;
+      gap: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .file-chip strong { font-size: 24px; overflow-wrap: anywhere; }
+    .file-chip span { color: var(--muted); overflow-wrap: anywhere; }
+    .hero-body {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .metric {
+      box-shadow: none;
+      padding: 14px;
+      background: rgba(20,24,32,.84);
+      min-width: 0;
+    }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .metric strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 19px;
+      overflow-wrap: anywhere;
+    }
+    .side { padding: 18px; }
+    .controls { display: grid; gap: 15px; }
+    .drop {
+      box-shadow: none;
+      padding: 14px;
+      background: rgba(35,42,52,.88);
+    }
+    .name {
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .control { display: grid; gap: 8px; }
+    .inline {
+      display: grid;
+      grid-template-columns: 1fr 86px;
+      gap: 10px;
+      align-items: center;
+    }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    input[type="number"], select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #141820;
+      color: var(--text);
+      padding: 0 12px;
+      outline: none;
+    }
+    input[type="file"] { display: none; }
+    button, .pick {
+      min-height: 46px;
+      border: 0;
+      border-radius: 8px;
+      color: #07110d;
+      background: var(--accent);
+      font-weight: 900;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 15px;
+      transition: transform .15s ease, filter .15s ease, opacity .15s ease;
+    }
+    button:hover, .pick:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    button:disabled { cursor: not-allowed; opacity: .48; transform: none; filter: none; }
+    .pick {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+      text-decoration: none;
+    }
+    .button-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .progress-shell {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #0d1016;
+      border: 1px solid var(--line);
+    }
+    .progress {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--blue));
+      transition: width .2s ease;
+    }
+    .progress.busy {
+      width: 45%;
+      animation: pulse 1.1s ease-in-out infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: translateX(-44%); }
+      to { transform: translateX(124%); }
+    }
+    .status {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      color: var(--muted);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+    .result {
+      box-shadow: none;
+      display: none;
+      padding: 14px;
+      background: rgba(88,215,166,.10);
+      border-color: rgba(88,215,166,.34);
+    }
+    .result.fail {
+      background: rgba(255,116,109,.10);
+      border-color: rgba(255,116,109,.42);
+    }
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+    @media (max-width: 900px) {
+      .app { width: min(100vw - 20px, 680px); padding: 16px 0; }
+      header { align-items: start; flex-direction: column; }
+      main { grid-template-columns: 1fr; }
+      .hero { min-height: 420px; }
+      .hero-body { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Discord MP4 動画圧縮</h1>
+      <div class="badge">5MB 目標</div>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="visual">
+          <div class="file-chip">
+            <strong id="heroName">動画が選択されていません</strong>
+            <span id="heroSub">動画を選んで、Discordに貼りやすい小さなMP4に圧縮します。</span>
+          </div>
+        </div>
+        <div class="hero-body">
+          <div class="metric"><span>元サイズ</span><strong id="originalSize">-</strong></div>
+          <div class="metric"><span>出力</span><strong id="outputSize">-</strong></div>
+          <div class="metric"><span>結果</span><strong id="resultSize">-</strong></div>
+        </div>
+      </section>
+      <aside class="side">
+        <div class="controls">
+          <div class="drop">
+            <div class="name" id="fileName">未選択</div>
+          </div>
+          <label class="pick" for="videoInput">動画を選択</label>
+          <input id="videoInput" type="file" accept="video/*">
+          <div class="control">
+            <label for="targetRange">目標サイズ MB</label>
+            <div class="inline">
+              <input id="targetRange" type="range" min="1" max="25" step="0.1" value="5">
+              <input id="targetMb" type="number" min="1" max="25" step="0.1" value="5">
+            </div>
+          </div>
+          <div class="control">
+            <label for="maxWidth">最大幅</label>
+            <select id="maxWidth">
+              <option value="1280">1280 px</option>
+              <option value="960" selected>960 px</option>
+              <option value="720">720 px</option>
+              <option value="540">540 px</option>
+              <option value="360">360 px</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="fps">フレームレート</label>
+            <select id="fps">
+              <option value="30" selected>30 fps</option>
+              <option value="24">24 fps</option>
+              <option value="15">15 fps</option>
+              <option value="10">10 fps</option>
+            </select>
+          </div>
+          <div class="button-grid">
+            <button id="compressBtn" disabled>MP4に圧縮</button>
+          </div>
+          <div class="progress-shell"><div class="progress" id="progress"></div></div>
+          <div class="status" id="status">サーバーを確認中...</div>
+          <div class="result" id="result">
+            <strong id="resultTitle"></strong>
+            <div id="resultText"></div>
+          </div>
+          <div class="note">公開版では動画をサーバーへアップロードして圧縮します。個人用途や友人向けなら、アクセス制限やアップロード上限を設定して運用してください。</div>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <script>
+    const state = { file: null, ffmpegReady: false };
+    const $ = id => document.getElementById(id);
+    const fmt = bytes => {
+      if (!Number.isFinite(bytes)) return "-";
+      const units = ["B", "KB", "MB", "GB"];
+      let value = bytes, unit = 0;
+      while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+      return `${value.toFixed(unit ? 2 : 0)} ${units[unit]}`;
+    };
+    const setBusy = (on, text) => {
+      $("videoInput").disabled = on;
+      $("compressBtn").disabled = on || !state.file || !state.ffmpegReady;
+      $("progress").classList.toggle("busy", on);
+      if (text) $("status").textContent = text;
+    };
+    const syncButtons = () => {
+      $("compressBtn").disabled = !state.file || !state.ffmpegReady;
+    };
+    async function readJsonError(response) {
+      try {
+        const json = await response.json();
+        return json.error || "処理に失敗しました。";
+      } catch {
+        return "処理に失敗しました。";
+      }
+    }
+    function syncTarget(fromRange) {
+      const source = fromRange ? $("targetRange") : $("targetMb");
+      const value = Math.min(25, Math.max(1, Number(source.value) || 5));
+      $("targetRange").value = value;
+      $("targetMb").value = value;
+    }
+    async function refreshStatus() {
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        const json = await res.json();
+        state.ffmpegReady = json.ffmpegReady;
+        $("status").textContent = json.ffmpegReady
+          ? `待機中。アップロード上限: ${json.maxUploadMb}MB`
+          : "サーバーにFFmpegが入っていません。管理者がFFmpegをインストールしてください。";
+      } catch {
+        $("status").textContent = "サーバーへ接続できません。";
+      } finally {
+        syncButtons();
+      }
+    }
+    $("videoInput").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      state.file = file;
+      $("fileName").textContent = file.name;
+      $("heroName").textContent = file.name;
+      $("heroSub").textContent = "圧縮設定を確認して、MP4に圧縮してください。";
+      $("originalSize").textContent = fmt(file.size);
+      $("outputSize").textContent = "-";
+      $("resultSize").textContent = "-";
+      $("result").style.display = "none";
+      $("status").textContent = state.ffmpegReady ? "待機中" : "FFmpegが未設定です。";
+      syncButtons();
+    });
+    $("compressBtn").addEventListener("click", async () => {
+      if (!state.file) return;
+      try {
+        $("result").style.display = "none";
+        setBusy(true, "アップロードして圧縮中です...");
+        const form = new FormData();
+        form.append("video", state.file);
+        form.append("targetMb", $("targetMb").value);
+        form.append("maxWidth", $("maxWidth").value);
+        form.append("fps", $("fps").value);
+        const response = await fetch("/api/compress", { method: "POST", body: form });
+        if (!response.ok) throw new Error(await readJsonError(response));
+        const blob = await response.blob();
+        const underTarget = response.headers.get("X-Under-Target") === "true";
+        const size = Number(response.headers.get("X-Compressed-Size") || blob.size);
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const match = disposition.match(/filename\*=UTF-8''([^;]+)/);
+        const name = match ? decodeURIComponent(match[1]) : "discord-5mb.mp4";
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        $("outputSize").textContent = fmt(size);
+        $("resultSize").textContent = underTarget ? "目標以下" : "目標超過";
+        $("result").classList.toggle("fail", !underTarget);
+        $("result").style.display = "block";
+        $("resultTitle").textContent = underTarget ? "MP4が完成しました" : "まだ目標サイズを超えています";
+        $("resultText").textContent = underTarget
+          ? "ダウンロードを開始しました。"
+          : "ダウンロードは開始しました。最大幅かfpsを下げて再実行してください。";
+        $("status").textContent = underTarget ? "完了" : "完了しましたが、目標サイズを超えています。";
+      } catch (error) {
+        $("status").textContent = error.message;
+      } finally {
+        setBusy(false);
+        syncButtons();
+      }
+    });
+    $("targetRange").addEventListener("input", () => syncTarget(true));
+    $("targetMb").addEventListener("input", () => syncTarget(false));
+    refreshStatus();
+  </script>
+</body>
+</html>
